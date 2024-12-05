@@ -1,0 +1,11 @@
+services:
+  shelly-tnh-to-prom:
+    container_name: shelly-tnh-to-prom
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - 8888:8888
+    environment:
+      - MQTT_ENDPOINTS=<ip/url>
+      - MQTT_TOPIC_FILTER=<topic_filer>
