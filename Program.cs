@@ -2,7 +2,9 @@
 using MQTTnet;
 using MQTTnet.Client;
 using Prometheus;
+using ShellyTnhToProm;
 using System.Text;
+using System.Text.Json;
 
 Console.WriteLine("Starting...");
 
@@ -14,9 +16,10 @@ IConfiguration configuration = new ConfigurationBuilder()
     .AddEnvironmentVariables()
     .Build();
 
-var endpoint = configuration["MQTT_ENDPOINTS"];
+var endpoint = configuration["MQTT_ENDPOINT"];
 var topicFilter = configuration["MQTT_TOPIC_FILTER"];
 var prometheusPort = Convert.ToInt32(configuration["PROMETHEUS_PORT"] ?? "1234");
+var printMsgs = Convert.ToBoolean(configuration["PRINT_ALL_MSGS"] ?? "false");
 
 Console.WriteLine($"Prom port: {prometheusPort}");
 
@@ -55,9 +58,10 @@ AppDomain.CurrentDomain.ProcessExit += (_, _) =>
 using var server = new Prometheus.MetricServer(port: prometheusPort);
 server.Start();
 
-Console.WriteLine("Prometheus server started");
+Console.WriteLine($"Prometheus server started on port '{prometheusPort}'");
 
-var latestMsgGauge = Metrics.CreateGauge("testing", "Latest testing message");
+var latestTempGauge = Metrics.CreateGauge("temp", "Latest reported temperature in celcius");
+var latestHumidityGauge = Metrics.CreateGauge("humidity", "Latest reported humidity in percent");
 
 
 
@@ -80,8 +84,32 @@ using (var mqttClient = mqttFactory.CreateMqttClient())
     // received messages get lost.
     mqttClient.ApplicationMessageReceivedAsync += e =>
     {
-        Console.WriteLine($"Received message: {Encoding.UTF8.GetString(e.ApplicationMessage.PayloadSegment)}");
-        latestMsgGauge.Set(Convert.ToDouble(Encoding.UTF8.GetString(e.ApplicationMessage.PayloadSegment)));
+        if(printMsgs)
+        {
+            Console.WriteLine($"Received message: {Encoding.UTF8.GetString(e.ApplicationMessage.PayloadSegment)}");
+        }
+        
+                ShellyPlusHnTSensorGen3Model model = null;
+        try
+        {
+            model = JsonSerializer.Deserialize<ShellyPlusHnTSensorGen3Model>(Encoding.UTF8.GetString(e.ApplicationMessage.PayloadSegment));
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Failed to deserialize data, will ignore");
+        }
+
+        if (
+            model != null && 
+            model?.Params?.Temperature0?.TC != null &&
+            model?.Params?.Humidity0?.Rh != null
+            )
+        {
+            Console.WriteLine($"Temp: '{model.Params.Temperature0.TC.Value}*C'. Humidity: '{model.Params.Humidity0.Rh.Value}%'");
+            latestTempGauge.Set(model.Params.Temperature0.TC.Value);
+            latestHumidityGauge.Set(model.Params.Humidity0.Rh.Value);
+        }
+
         return Task.CompletedTask;
     };
 
