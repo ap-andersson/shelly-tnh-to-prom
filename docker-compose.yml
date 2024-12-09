@@ -8,5 +8,6 @@ services:
       - 8888:1234
     environment:
       - MQTT_ENDPOINT=<ip/url>
+      - TZ=Europe/Stockholm
       - MQTT_TOPIC_FILTER=shellyhtg3-lr/events/rpc
       - PRINT_ALL_MSGS=false

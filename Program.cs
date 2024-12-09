@@ -6,7 +6,7 @@ using ShellyTnhToProm;
 using System.Text;
 using System.Text.Json;
 
-Console.WriteLine("Starting...");
+Logger.Log("Starting...");
 
 
 // Read configuration
@@ -21,7 +21,7 @@ var topicFilter = configuration["MQTT_TOPIC_FILTER"];
 var prometheusPort = Convert.ToInt32(configuration["PROMETHEUS_PORT"] ?? "1234");
 var printMsgs = Convert.ToBoolean(configuration["PRINT_ALL_MSGS"] ?? "false");
 
-Console.WriteLine($"Prom port: {prometheusPort}");
+Logger.Log($"Prom port: {prometheusPort}");
 
 // Setup graceful shutdown. Not that it actually works in containers on Linux
 
@@ -31,7 +31,7 @@ var sigintReceived = false;
 
 Console.CancelKeyPress += (s, e) =>
 {
-    Console.WriteLine("Canceling");
+    Logger.Log("Canceling");
     //tcs.SetResult();
     e.Cancel = true;
     sigintReceived = true;
@@ -42,13 +42,13 @@ AppDomain.CurrentDomain.ProcessExit += (_, _) =>
 {
     if (!sigintReceived)
     {
-        Console.WriteLine("Received SIGTERM");
+        Logger.Log("Received SIGTERM");
         //tcs.SetResult();
         cts.Cancel();
     }
     else
     {
-        Console.WriteLine("Received SIGTERM, ignoring it because already processed SIGINT");
+        Logger.Log("Received SIGTERM, ignoring it because already processed SIGINT");
     }
 };
 
@@ -58,7 +58,7 @@ AppDomain.CurrentDomain.ProcessExit += (_, _) =>
 using var server = new Prometheus.MetricServer(port: prometheusPort);
 server.Start();
 
-Console.WriteLine($"Prometheus server started on port '{prometheusPort}'");
+Logger.Log($"Prometheus server started on port '{prometheusPort}'");
 
 var latestTempGauge = Metrics.CreateGauge("temp", "Latest reported temperature in celcius");
 var latestHumidityGauge = Metrics.CreateGauge("humidity", "Latest reported humidity in percent");
@@ -86,7 +86,7 @@ using (var mqttClient = mqttFactory.CreateMqttClient())
     {
         if(printMsgs)
         {
-            Console.WriteLine($"Received message: {Encoding.UTF8.GetString(e.ApplicationMessage.PayloadSegment)}");
+            Logger.Log($"Received message: {Encoding.UTF8.GetString(e.ApplicationMessage.PayloadSegment)}");
         }
         
                 ShellyPlusHnTSensorGen3Model model = null;
@@ -96,7 +96,7 @@ using (var mqttClient = mqttFactory.CreateMqttClient())
         }
         catch (Exception ex)
         {
-            Console.WriteLine("Failed to deserialize data, will ignore");
+            Logger.Log("Failed to deserialize data, will ignore");
         }
 
         if (
@@ -105,7 +105,7 @@ using (var mqttClient = mqttFactory.CreateMqttClient())
             model?.Params?.Humidity0?.Rh != null
             )
         {
-            Console.WriteLine($"Temp: '{model.Params.Temperature0.TC.Value}*C'. Humidity: '{model.Params.Humidity0.Rh.Value}%'");
+            Logger.Log($"Temp: '{model.Params.Temperature0.TC.Value}*C'. Humidity: '{model.Params.Humidity0.Rh.Value}%'");
             latestTempGauge.Set(model.Params.Temperature0.TC.Value);
             latestHumidityGauge.Set(model.Params.Humidity0.Rh.Value);
         }
@@ -122,7 +122,7 @@ using (var mqttClient = mqttFactory.CreateMqttClient())
 
     await mqttClient.SubscribeAsync(mqttSubscribeOptions, cts.Token);
 
-    Console.WriteLine("MQTT client subscribed to topic.");
+    Logger.Log("MQTT client subscribed to topic.");
 
     while (!cts.IsCancellationRequested)
     {
@@ -132,11 +132,11 @@ using (var mqttClient = mqttFactory.CreateMqttClient())
         await Task.Delay(TimeSpan.FromSeconds(60), cts.Token).ContinueWith(tsk => { });
     }
 
-    Console.WriteLine("Unsubscribing");
+    Logger.Log("Unsubscribing");
     await mqttClient.UnsubscribeAsync(topicFilter);
 
-    Console.WriteLine("Disconnecting");
+    Logger.Log("Disconnecting");
     await mqttClient.DisconnectAsync();
 
-    Console.WriteLine("Exiting");
+    Logger.Log("Exiting");
 }
