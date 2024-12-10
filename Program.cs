@@ -60,8 +60,17 @@ server.Start();
 
 Logger.Log($"Prometheus server started on port '{prometheusPort}'");
 
-var latestTempGauge = Metrics.CreateGauge("temp", "Latest reported temperature in celcius");
-var latestHumidityGauge = Metrics.CreateGauge("humidity", "Latest reported humidity in percent");
+var latestTempGauge = Metrics.CreateGauge(
+    "temp", 
+    "Latest reported temperature in celcius", 
+    new GaugeConfiguration { SuppressInitialValue = true }
+    );
+
+var latestHumidityGauge = Metrics.CreateGauge(
+    "humidity", 
+    "Latest reported humidity in percent",
+    new GaugeConfiguration { SuppressInitialValue = true }
+    );
 
 
 
@@ -84,12 +93,12 @@ using (var mqttClient = mqttFactory.CreateMqttClient())
     // received messages get lost.
     mqttClient.ApplicationMessageReceivedAsync += e =>
     {
-        if(printMsgs)
+        if (printMsgs)
         {
             Logger.Log($"Received message: {Encoding.UTF8.GetString(e.ApplicationMessage.PayloadSegment)}");
         }
-        
-                ShellyPlusHnTSensorGen3Model model = null;
+
+        ShellyPlusHnTSensorGen3Model model = null;
         try
         {
             model = JsonSerializer.Deserialize<ShellyPlusHnTSensorGen3Model>(Encoding.UTF8.GetString(e.ApplicationMessage.PayloadSegment));
@@ -100,7 +109,7 @@ using (var mqttClient = mqttFactory.CreateMqttClient())
         }
 
         if (
-            model != null && 
+            model != null &&
             model?.Params?.Temperature0?.TC != null &&
             model?.Params?.Humidity0?.Rh != null
             )
