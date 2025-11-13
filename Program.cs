@@ -98,7 +98,7 @@ using (var mqttClient = mqttFactory.CreateMqttClient())
             Logger.Log($"Received message: {Encoding.UTF8.GetString(e.ApplicationMessage.PayloadSegment)}");
         }
 
-        ShellyPlusHnTSensorGen3Model model = null;
+        ShellyPlusHnTSensorGen3Model? model = null;
         try
         {
             model = JsonSerializer.Deserialize<ShellyPlusHnTSensorGen3Model>(Encoding.UTF8.GetString(e.ApplicationMessage.PayloadSegment));
