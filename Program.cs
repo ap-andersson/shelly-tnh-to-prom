@@ -73,7 +73,6 @@ var latestHumidityGauge = Metrics.CreateGauge(
     );
 
 
-
 // Lets start doing the stuff
 
 var clientId = Guid.NewGuid();
