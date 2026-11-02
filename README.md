@@ -5,7 +5,9 @@ devices that send the same RPC notifications) over MQTT and exposes them as a
 Prometheus endpoint.
 
 The Shelly publishes its status to `<prefix>/events/rpc` every time it wakes
-up. This service subscribes to that topic and keeps the latest values.
+up: periodically (every 2 hours by default) and whenever temperature or
+humidity changes more than its configured threshold. This service subscribes
+to that topic and keeps the latest values.
 
 ## Run
 
